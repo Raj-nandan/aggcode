@@ -1,8 +1,7 @@
+import { uuid } from "uuidv4";
 import { WebSocket } from "ws";
+import { User } from "./User";
 
-interface User {
-    socket: WebSocket;
-}
 
 export class UserManager {
     private users : User[];
@@ -20,13 +19,15 @@ export class UserManager {
     }
 
     addUser(ws: WebSocket){
-        this.users.push({
-            socket:ws
-        });
+        const id = uuid();
+        const user = new User(id, ws);
+        this.users.push(user);
 
-        ws.on("message", (msg) =>{
+        ws.on("message", async(msg) =>{
             try{
                 const parsedMesage = JSON.parse(msg.toString());
+                const responsePayload = await user.handleIncomingMessage(parsedMesage); 
+                user.sendMessage(responsePayload);
 
             } catch(e){
                 console.log(`User sent non JSON input`);
@@ -36,7 +37,7 @@ export class UserManager {
         })
 
         ws.on("close", () =>{
-            this.users = this.users.filter(x => x.socket != ws);
+            this.users = this.users.filter(x => x.id != id);
         })
     }
 
