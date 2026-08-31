@@ -1,16 +1,20 @@
 import mongoose from "mongoose";
 
-export const Workspace = new mongoose.Schema({
+const Workspace = new mongoose.Schema({
     path: String,
     name: String,
 })
 
-export const Session = new mongoose.Schema({
-    converstation: [Object],
-    workspace: [{
+const Session = new mongoose.Schema({
+    role: {
+        type: String,
+        enum: ['user', 'assistant']
+    },
+    conversation: [Object],
+    workspace: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Workspace'
-    }]
+    }
 })
 
 export const WorkspaceModel = mongoose.model('Workspace', Workspace);

@@ -1,5 +1,6 @@
 import { AddMessageSchema, CreateSessionSchema, CreateWorkspaceSchema, type IncomingMessageType, type OutgoingMessageType } from "commons/types";
 import { SessionModel, WorkspaceModel } from "db/client";
+import mongoose from "mongoose";
 import { WebSocket } from "ws"; 
 
 export class User {
@@ -17,33 +18,37 @@ export class User {
 
     async handleIncomingMessage(msg : IncomingMessageType): Promise<OutgoingMessageType> {
         if(msg.type === "create-workspace") {
-            const { success, data } = CreateWorkspaceSchema.safeParse(msg);
+            const { success, data } = CreateWorkspaceSchema.safeParse(msg.payload);
             if(!success){
                 throw new Error("Incorrect Schema")
             }
+
+           const name: string = data.path.split("/").pop()!;
             
             const workspace = await WorkspaceModel.create({
                 path: data.path,
-                name: data.path.split("/").pop()
+                name
             })
 
             return {
                 type: "workspace-created",
                 payload: {
-                    id: workspace._id.toString()
+                    id: workspace._id.toString(),
+                    path: data.path,
+                    name
                 }
             }
         }
 
         if(msg.type === "create-session") {
-            const { success, data } = CreateSessionSchema.safeParse(msg);
+            const { success, data } = CreateSessionSchema.safeParse(msg.payload);
             if(!success){
                 throw new Error("Incorrect Schema")
             }
             
             const session = await SessionModel.create({
-                workspace: [data.workspaceId],
-                converstation: []
+                workspace: new mongoose.Types.ObjectId(data.workspaceId),
+                conversation: []
             })
 
             return {
@@ -55,7 +60,7 @@ export class User {
         }
 
         if(msg.type === "add-message") {
-            const { success, data } = AddMessageSchema.safeParse(msg);
+            const { success, data } = AddMessageSchema.safeParse(msg.payload);
             if(!success){
                 throw new Error("Incorrect Schema")
             }

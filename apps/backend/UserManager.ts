@@ -1,6 +1,8 @@
 import { uuid } from "uuidv4";
 import { WebSocket } from "ws";
 import { User } from "./User";
+import { SessionModel, WorkspaceModel } from "db/client";
+import type { Session, Workspace } from "commons/types";
 
 
 export class UserManager {
@@ -18,10 +20,42 @@ export class UserManager {
          return UserManager.instance;
     }
 
-    addUser(ws: WebSocket){
+    async addUser(ws: WebSocket){
         const id = uuid();
         const user = new User(id, ws);
         this.users.push(user);
+
+        const workspaces = await WorkspaceModel.find();
+        const sessions = await SessionModel.find();
+
+        const response: Workspace[] = []
+        
+        workspaces.forEach(w => {
+            const finalSessions: Session[] =  [];
+
+            sessions.forEach(s => {
+                if(s.workspace === w._id){
+                    finalSessions.push({
+                        id: s._id.toString(),
+                        messages: s.messages
+                    })
+                }
+            })
+            
+            response.push({ 
+                id: w._id.toString(),
+                name: w.name ?? "",
+                path: w.path ?? "",
+                sessions: finalSessions
+            })
+
+        })
+
+
+        ws.send(JSON.stringify({
+            type: "init",
+            workspaces: response
+        }))
 
         ws.on("message", async(msg) =>{
             try{
@@ -30,8 +64,8 @@ export class UserManager {
                 user.sendMessage(responsePayload);
 
             } catch(e){
-                console.log(`User sent non JSON input`);
                 console.log(msg.toString());
+                console.log(e)
             }
     
         })
